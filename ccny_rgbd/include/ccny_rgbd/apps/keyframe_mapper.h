@@ -41,6 +41,7 @@
 #include <octomap/OcTree.h>
 #include <octomap/ColorOcTree.h>
 #include <rgbdtools/rgbdtools.h>
+#include <rgbdtools/rgbd_util.h>
 #include <qbo_graph_slam_messages/Keyframe.h>
 
 #include "ccny_rgbd/types.h"
@@ -277,7 +278,8 @@ class KeyframeMapper
     bool octomap_with_color_; ///< whetehr to save Octomaps with color info 
     bool online_graph_opt_; //Whether or not to do online graph optimization and association checking  
     double max_map_z_;   ///< maximum z (in fixed frame) when exporting maps.
-          
+    bool motion_constraint_;
+
     // state vars
     bool manual_add_;   ///< flag indicating whetehr a manual add has been requested
 

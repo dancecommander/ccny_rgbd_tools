@@ -130,6 +130,8 @@ void KeyframeMapper::initParams()
     online_graph_opt_ = false; 
   if (!nh_private_.getParam ("max_ang_vel", max_ang_vel_))
     max_ang_vel_ = 9999; 
+  if (!nh_private_.getParam ("motion_constraint", motion_constraint_))
+    motion_constraint_ = true; 
 
   // configure graph detection 
     
@@ -209,7 +211,7 @@ bool KeyframeMapper::processFrame(
   geometry_msgs::PoseStamped frame_pose; 
 
   //Correct the pose!
-  tf::Transform frame_tf = tfFromEigenAffine(aggregatedPoseCorrection_  * pose);
+  tf::Transform frame_tf = tfFromEigenAffine(pose);
   tf::poseTFToMsg(frame_tf, frame_pose.pose);
  
   // update the header of the pose for the path
@@ -230,7 +232,7 @@ bool KeyframeMapper::processFrame(
   else
   {
     double dist, angle;
-    getTfDifference(tfFromEigenAffine(aggregatedPoseCorrection_ *pose), 
+    getTfDifference(tfFromEigenAffine(pose), 
                     tfFromEigenAffine(keyframes_.back().pose), 
                     dist, angle);
     ROS_INFO("Distance travelled & degrees turned since last KF: %f m, %f degrees",dist,angle);
@@ -264,7 +266,7 @@ void KeyframeMapper::addKeyframe(
 {
   rgbdtools::RGBDKeyframe keyframe(frame);
   //Apply correction to pose
-  keyframe.pose = aggregatedPoseCorrection_ * pose;
+  keyframe.pose = pose;
   uncorrected_keyframe_poses_.push_back(pose);
   int associations_prev = associations_.size();
   keyframe.storeFilteredPointCloud(max_range_,max_stdev_,pcd_map_res_);
@@ -287,6 +289,7 @@ void KeyframeMapper::addKeyframe(
   publishKeyframeMsg(keyframes_.size()-1); 
   publishKeyframePoses();
 
+
   //Record the odometry measured between consecutive keyframes (only if more than one keyframe exists)
   if(keyframes_.size()>1){
     rgbdtools::KeyframeAssociation odometryEdge;
@@ -305,6 +308,7 @@ void KeyframeMapper::addKeyframe(
     odometryEdges_.push_back(odometryEdge);
   }
 
+
   if(online_graph_opt_){
     graph_detector_.prepareMatcher(keyframes_);
     //ROS_INFO("Keyframe associations being checked...");
@@ -321,7 +325,15 @@ void KeyframeMapper::addKeyframe(
 
       //Calculate and publish pose correction
       AffineTransform poseCorrection;
-      poseCorrection = keyframes_[keyframes_.size()-1].pose * uncorrected_keyframe_poses_[uncorrected_keyframe_poses_.size()-1].inverse() ;
+      AffineTransform D;
+      D = aggregatedPoseCorrection_.inverse() * pose;
+      poseCorrection = keyframes_[(keyframes_.size()-1)].pose * D.inverse();
+      if (motion_constraint_ == true)
+      {
+        float x, y, z, roll, pitch, yaw;
+        rgbdtools::eigenAffineToXYZRPY(poseCorrection, x, y, z, roll, pitch, yaw);
+        rgbdtools::XYZRPYToEigenAffine(x, y, 0, 0, 0, yaw, poseCorrection);
+      }
       aggregatedPoseCorrection_=poseCorrection;
       publishAggregatedPoseCorrection();
 

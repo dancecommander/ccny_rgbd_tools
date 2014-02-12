@@ -6,14 +6,14 @@ import struct
 
 
 class PublishKeyframesRequest(genpy.Message):
-  _md5sum = "a91fd359d10bd35fdc46f24ffc722fa2"
+  _md5sum = "d41d8cd98f00b204e9800998ecf8427e"
   _type = "ccny_rgbd/PublishKeyframesRequest"
   _has_header = False #flag to mark the presence of a Header object
-  _full_text = """string re
+  _full_text = """
 
 """
-  __slots__ = ['re']
-  _slot_types = ['string']
+  __slots__ = []
+  _slot_types = []
 
   def __init__(self, *args, **kwds):
     """
@@ -23,7 +23,7 @@ class PublishKeyframesRequest(genpy.Message):
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       re
+       
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -31,11 +31,6 @@ class PublishKeyframesRequest(genpy.Message):
     """
     if args or kwds:
       super(PublishKeyframesRequest, self).__init__(*args, **kwds)
-      #message fields cannot be None, assign default values for those that are
-      if self.re is None:
-        self.re = ''
-    else:
-      self.re = ''
 
   def _get_types(self):
     """
@@ -49,12 +44,7 @@ class PublishKeyframesRequest(genpy.Message):
     :param buff: buffer, ``StringIO``
     """
     try:
-      _x = self.re
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
+      pass
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -65,15 +55,6 @@ class PublishKeyframesRequest(genpy.Message):
     """
     try:
       end = 0
-      start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.re = str[start:end].decode('utf-8')
-      else:
-        self.re = str[start:end]
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -86,12 +67,7 @@ class PublishKeyframesRequest(genpy.Message):
     :param numpy: numpy python module
     """
     try:
-      _x = self.re
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
+      pass
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -103,15 +79,6 @@ class PublishKeyframesRequest(genpy.Message):
     """
     try:
       end = 0
-      start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.re = str[start:end].decode('utf-8')
-      else:
-        self.re = str[start:end]
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -129,7 +96,6 @@ class PublishKeyframesResponse(genpy.Message):
   _type = "ccny_rgbd/PublishKeyframesResponse"
   _has_header = False #flag to mark the presence of a Header object
   _full_text = """
-
 """
   __slots__ = []
   _slot_types = []
@@ -205,6 +171,6 @@ class PublishKeyframesResponse(genpy.Message):
 _struct_I = genpy.struct_I
 class PublishKeyframes(object):
   _type          = 'ccny_rgbd/PublishKeyframes'
-  _md5sum = 'a91fd359d10bd35fdc46f24ffc722fa2'
+  _md5sum = 'd41d8cd98f00b204e9800998ecf8427e'
   _request_class  = PublishKeyframesRequest
   _response_class = PublishKeyframesResponse
