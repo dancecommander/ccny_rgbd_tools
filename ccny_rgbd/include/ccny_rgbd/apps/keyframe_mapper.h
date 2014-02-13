@@ -187,7 +187,8 @@ class KeyframeMapper
     ros::NodeHandle nh_;          ///< public nodehandle
     ros::NodeHandle nh_private_;  ///< private nodepcdhandle
     
-    std::string fixed_frame_;     ///< the fixed frame (usually "odom")
+    std::string fixed_frame_;     ///< the fixed frame (usually "map")
+    std::string odom_frame_;     
     
     int queue_size_;  ///< Subscription queue size
     
@@ -296,6 +297,7 @@ class KeyframeMapper
     AffineTransform aggregatedPoseCorrection_;
 
     std::vector<AffineTransform> uncorrected_keyframe_poses_;
+    std::vector<AffineTransform> keyframe_odometry_poses_;
     
     /** @brief processes an incoming RGBD frame with a given pose,
      * and determines whether a keyframe should be inserted
@@ -304,14 +306,14 @@ class KeyframeMapper
      * @retval true a keyframe was inserted
      * @retval false no keyframe was inserted
      */
-    bool processFrame(const rgbdtools::RGBDFrame& frame, const AffineTransform& pose);
+    bool processFrame(const rgbdtools::RGBDFrame& frame, const AffineTransform& ff_pose, const AffineTransform& odom_pose);
     
     /** @brief creates a keyframe from an RGBD frame and inserts it in
      * the keyframe vector.
      * @param frame the incoming RGBD frame (image)
      * @param pose the pose of the base frame when RGBD image was taken
      */
-    void addKeyframe(const rgbdtools::RGBDFrame& frame, const AffineTransform& pose);
+    void addKeyframe(const rgbdtools::RGBDFrame& frame, const AffineTransform& pose, const AffineTransform& odom_pose);
 
     /** @brief Publishes the point cloud associated with a keyframe
      * @param i the keyframe index

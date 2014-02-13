@@ -109,7 +109,9 @@ void KeyframeMapper::initParams()
   if (!nh_private_.getParam ("queue_size", queue_size_))
     queue_size_ = 5;
   if (!nh_private_.getParam ("fixed_frame", fixed_frame_))
-    fixed_frame_ = "/odom";
+    fixed_frame_ = "/map";
+  if (!nh_private_.getParam ("odom_frame", odom_frame_))
+    odom_frame_ = "/odom";
   if (!nh_private_.getParam ("pcd_map_res", pcd_map_res_))
     pcd_map_res_ = 0.01;
   if (!nh_private_.getParam ("octomap_res", octomap_res_))
@@ -174,7 +176,8 @@ void KeyframeMapper::RGBDCallback(
   const CameraInfoMsg::ConstPtr& info_msg)
 {
   //ROS_INFO("RGBDCallback called.");
-  tf::StampedTransform transform;
+  tf::StampedTransform ff_transform;
+  tf::StampedTransform odom_transform;
 
   const ros::Time& time = rgb_msg->header.stamp;
 
@@ -182,7 +185,10 @@ void KeyframeMapper::RGBDCallback(
     tf_listener_.waitForTransform(
      fixed_frame_, rgb_msg->header.frame_id, time, ros::Duration(0.1));
     tf_listener_.lookupTransform(
-      fixed_frame_, rgb_msg->header.frame_id, time, transform);  
+      fixed_frame_, rgb_msg->header.frame_id, time, ff_transform); 
+    //Check for the odometry location as well, this will be used for the odom edges!
+    tf_listener_.lookupTransform(
+      odom_frame_, rgb_msg->header.frame_id, time, odom_transform);  
   }
   catch(...)
   {
@@ -195,7 +201,7 @@ void KeyframeMapper::RGBDCallback(
   frame.index = rgbd_frame_index_;
   rgbd_frame_index_++;
   
-  bool result = processFrame(frame, eigenAffineFromTf(transform));
+  bool result = processFrame(frame, eigenAffineFromTf(ff_transform), eigenAffineFromTf(odom_transform));
   if (result) publishKeyframeData(keyframes_.size() - 1);
   
   publishPath();
@@ -205,13 +211,14 @@ void KeyframeMapper::RGBDCallback(
 
 bool KeyframeMapper::processFrame(
   const rgbdtools::RGBDFrame& frame, 
-  const AffineTransform& pose)
+  const AffineTransform& ff_pose,
+  const AffineTransform& odom_pose)
 {
   // add the frame pose to the path vector
   geometry_msgs::PoseStamped frame_pose; 
 
   //Correct the pose!
-  tf::Transform frame_tf = tfFromEigenAffine(pose);
+  tf::Transform frame_tf = tfFromEigenAffine(ff_pose);
   tf::poseTFToMsg(frame_tf, frame_pose.pose);
  
   // update the header of the pose for the path
@@ -232,8 +239,9 @@ bool KeyframeMapper::processFrame(
   else
   {
     double dist, angle;
-    getTfDifference(tfFromEigenAffine(pose), 
-                    tfFromEigenAffine(keyframes_.back().pose), 
+    //use odom poses here (since correction will make the pose jump around in the fixed frame)
+    getTfDifference(tfFromEigenAffine(odom_pose), 
+                    tfFromEigenAffine(keyframe_odometry_poses_.back()), 
                     dist, angle);
     ROS_INFO("Distance travelled & degrees turned since last KF: %f m, %f degrees",dist,angle);
     if (dist > kf_dist_eps_ || angle > kf_angle_eps_){
@@ -255,19 +263,19 @@ bool KeyframeMapper::processFrame(
 
   if (result)
   {
-    addKeyframe(frame, pose);
+    addKeyframe(frame, ff_pose, odom_pose);
   }
   return result;
 }
 
 void KeyframeMapper::addKeyframe(
   const rgbdtools::RGBDFrame& frame, 
-  const AffineTransform& pose)
+  const AffineTransform& ff_pose,
+  const AffineTransform& odom_pose)
 {
   rgbdtools::RGBDKeyframe keyframe(frame);
-  //Apply correction to pose
-  keyframe.pose = pose;
-  uncorrected_keyframe_poses_.push_back(pose);
+  keyframe.pose = ff_pose;
+  keyframe_odometry_poses_.push_back(odom_pose);
   int associations_prev = associations_.size();
   keyframe.storeFilteredPointCloud(max_range_,max_stdev_,pcd_map_res_);
 
@@ -297,8 +305,8 @@ void KeyframeMapper::addKeyframe(
     int from_idx = keyframes_.size() - 2; 
     int to_idx = keyframes_.size() - 1;
 
-    const AffineTransform& from_pose = uncorrected_keyframe_poses_[from_idx];
-    const AffineTransform& to_pose   = uncorrected_keyframe_poses_[to_idx];
+    const AffineTransform& from_pose = keyframe_odometry_poses_[from_idx];
+    const AffineTransform& to_pose   = keyframe_odometry_poses_[to_idx];
     AffineTransform tf = from_pose.inverse() * to_pose;
 
     odometryEdge.kf_idx_a = from_idx;
@@ -326,7 +334,7 @@ void KeyframeMapper::addKeyframe(
       //Calculate and publish pose correction
       AffineTransform poseCorrection;
       AffineTransform D;
-      D = aggregatedPoseCorrection_.inverse() * pose;
+      D = aggregatedPoseCorrection_.inverse() * ff_pose;
       poseCorrection = keyframes_[(keyframes_.size()-1)].pose * D.inverse();
       if (motion_constraint_ == true)
       {
