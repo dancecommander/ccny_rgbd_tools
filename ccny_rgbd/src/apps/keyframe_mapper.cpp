@@ -362,12 +362,6 @@ void KeyframeMapper::addKeyframe(
       AffineTransform D;
       D = aggregatedPoseCorrection_.inverse() * ff_pose;
       poseCorrection = keyframes_[(keyframes_.size()-1)].pose * D.inverse();
-      if (motion_constraint_ == true)
-      {
-        float x, y, z, roll, pitch, yaw;
-        rgbdtools::eigenAffineToXYZRPY(poseCorrection, x, y, z, roll, pitch, yaw);
-        rgbdtools::XYZRPYToEigenAffine(x, y, 0, 0, 0, yaw, poseCorrection);
-      }
       aggregatedPoseCorrection_=poseCorrection;
       publishAggregatedPoseCorrection();
       updatePathFromKeyframePoses();
@@ -383,6 +377,12 @@ void KeyframeMapper::addKeyframe(
 
 void KeyframeMapper::publishAggregatedPoseCorrection(){
   geometry_msgs::Transform msg;
+  if (motion_constraint_ == true)
+  {
+    float x, y, z, roll, pitch, yaw;
+    rgbdtools::eigenAffineToXYZRPY(aggregatedPoseCorrection_, x, y, z, roll, pitch, yaw);
+    rgbdtools::XYZRPYToEigenAffine(x, y, 0, 0, 0, yaw, aggregatedPoseCorrection_);
+  }
   tf::Transform correctiontf = tfFromEigenAffine(aggregatedPoseCorrection_);
   tf::transformTFToMsg(correctiontf,msg);
   std::cout << "correctiontf: " << msg << std::endl;
