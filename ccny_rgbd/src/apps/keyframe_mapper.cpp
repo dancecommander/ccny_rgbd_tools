@@ -37,6 +37,11 @@ KeyframeMapper::KeyframeMapper(
   // **** params
   
   initParams();
+
+  //Load saved map!
+  if(localization_only_){
+    loadKeyframesToMap();
+  }
   
   // **** publishers
   
@@ -134,6 +139,14 @@ void KeyframeMapper::initParams()
     max_ang_vel_ = 9999; 
   if (!nh_private_.getParam ("motion_constraint", motion_constraint_))
     motion_constraint_ = true; 
+  if (!nh_private_.getParam ("map_save_directory", map_save_dir_))
+    map_save_dir_ = "/home/dancecommander/cued-masters/saved_map"; 
+  if (!nh_private_.getParam ("map_load_directory", map_load_dir_))
+    map_load_dir_ = "/home/dancecommander/cued-masters/saved_map";
+  if (!nh_private_.getParam ("localization_only", localization_only_))
+    localization_only_ = false;
+  if (!nh_private_.getParam ("max_correction_dist", max_correction_dist_))
+    max_correction_dist_ = 3.0;
 
   // configure graph detection 
     
@@ -217,7 +230,6 @@ bool KeyframeMapper::processFrame(
   // add the frame pose to the path vector
   geometry_msgs::PoseStamped frame_pose; 
 
-  //Correct the pose!
   tf::Transform frame_tf = tfFromEigenAffine(ff_pose);
   tf::poseTFToMsg(frame_tf, frame_pose.pose);
  
@@ -226,7 +238,27 @@ bool KeyframeMapper::processFrame(
   frame_pose.header.seq = frame.header.seq;
   frame_pose.header.stamp.sec = frame.header.stamp.sec;
   frame_pose.header.stamp.nsec = frame.header.stamp.nsec;
-    
+  
+  if(localization_only_){
+    rgbdtools::RGBDKeyframe keyframe(frame);
+    keyframe.pose = ff_pose;
+    keyframes_.push_back(keyframe);
+    AffineTransform Pa2b;
+    if(graph_detector_.appearanceLocalizer(keyframes_, Pa2b))
+    {
+      AffineTransform pose_correction_candidate;
+      pose_correction_candidate=Pa2b * odom_pose.inverse();
+      double norm=(pose_correction_candidate.translation()-aggregatedPoseCorrection_.translation()).norm();
+      //std::cout << "Norm: "<< norm << std::endl;
+      if(norm<max_correction_dist_){
+        aggregatedPoseCorrection_ = pose_correction_candidate;
+        publishAggregatedPoseCorrection();
+      }
+    }
+    keyframes_.pop_back();
+    return false;
+  }
+
   path_msg_.poses.push_back(frame_pose);
    
   // determine if a new keyframe is needed
@@ -324,12 +356,6 @@ void KeyframeMapper::addKeyframe(
     ROS_INFO("Number of associations :%d", (int)associations_.size());
     if(associations_.size()>associations_prev){
       graph_solver_.solve(keyframes_, associations_,odometryEdges_);
-      updatePathFromKeyframePoses();
-  
-      publishPath();
-      publishKeyframePoses();
-      publishKeyframeAssociations();
-      updateOctoMapServer();
 
       //Calculate and publish pose correction
       AffineTransform poseCorrection;
@@ -344,6 +370,12 @@ void KeyframeMapper::addKeyframe(
       }
       aggregatedPoseCorrection_=poseCorrection;
       publishAggregatedPoseCorrection();
+      updatePathFromKeyframePoses();
+      publishPath();
+      publishKeyframePoses();
+      publishKeyframeAssociations();
+      updateOctoMapServer();
+
 
     }
   }
@@ -353,6 +385,7 @@ void KeyframeMapper::publishAggregatedPoseCorrection(){
   geometry_msgs::Transform msg;
   tf::Transform correctiontf = tfFromEigenAffine(aggregatedPoseCorrection_);
   tf::transformTFToMsg(correctiontf,msg);
+  std::cout << "correctiontf: " << msg << std::endl;
   pose_correction_pub_.publish(msg);
 }
 
@@ -378,36 +411,8 @@ bool KeyframeMapper::publishKeyframeSrvCallback(
 }
 
 bool KeyframeMapper::publishKeyframesSrvCallback(
-  PublishKeyframes::Request& request,
-  PublishKeyframes::Response& response)
+  std_srvs::Empty::Request& req, std_srvs::Empty::Response& resp)
 { 
-  /*bool found_match = false;
-
-  // regex matching - try match the request string against each
-  // keyframe index
-  boost::regex expression(request.re);
-  
-  for (unsigned int kf_idx = 0; kf_idx < keyframes_.size(); ++kf_idx)
-  {
-    std::stringstream ss;
-    ss << kf_idx;
-    std::string kf_idx_string = ss.str();
-      
-    boost::smatch match;
-    
-    if(boost::regex_match(kf_idx_string, match, expression))
-    {
-      found_match = true;
-      ROS_INFO("Publishing keyframe %d", kf_idx);
-      publishKeyframeData(kf_idx);
-      publishKeyframePose(kf_idx);
-      usleep(25000);
-    }
-  }
-
-  publishPath();
-
-  return found_match;*/
   publishMap();
   return true;
 }
@@ -601,13 +606,13 @@ void KeyframeMapper::publishKeyframeMsg(int kf_idx){
 }
 
 bool KeyframeMapper::saveKeyframesSrvCallback(
-  Save::Request& request,
-  Save::Response& response)
+  std_srvs::Empty::Request& req, std_srvs::Empty::Response& resp)
 {
-  std::string filepath = request.filename;
- 
+  
+  std::string filepath = map_save_dir_;
+
   ROS_INFO("Saving keyframes...");
-  std::string filepath_keyframes = filepath + "/keyframes/";
+  std::string filepath_keyframes = filepath + "/keyframes";
   bool result_kf = saveKeyframes(keyframes_, filepath_keyframes);
   if (result_kf) ROS_INFO("Keyframes saved to %s", filepath.c_str());
   else ROS_ERROR("Keyframe saving failed!");
@@ -622,23 +627,28 @@ bool KeyframeMapper::saveKeyframesSrvCallback(
 }
 
 bool KeyframeMapper::loadKeyframesSrvCallback(
-  Load::Request& request,
-  Load::Response& response)
+  std_srvs::Empty::Request& req, std_srvs::Empty::Response& resp)
 {
-  std::string filepath = request.filename;
+  return loadKeyframesToMap();
+}
+
+bool KeyframeMapper::loadKeyframesToMap()
+{
+  std::string filepath = map_load_dir_;
   
   ROS_INFO("Loading keyframes...");
-  std::string filepath_keyframes = filepath + "/keyframes/";
+  std::string filepath_keyframes = filepath + "/keyframes";
   bool result_kf = loadKeyframes(keyframes_, filepath_keyframes); 
   if (result_kf) ROS_INFO("Keyframes loaded successfully");
   else ROS_ERROR("Keyframe loading failed!");
   
-  ROS_INFO("Loading path...");
-  bool result_path = loadPath(filepath);
-  if (result_path) ROS_INFO("Path loaded successfully");
-  else ROS_ERROR("Path loading failed!");
-  
-  return result_kf && result_path;
+  for (int i = 0; i<keyframes_.size()-1;i++){
+    keyframes_[i].storeFilteredPointCloud(max_range_,max_stdev_,pcd_map_res_);
+    graph_detector_.extractFeatures(keyframes_[i]);   
+  }
+  graph_detector_.prepareMatchers(keyframes_);
+
+  return result_kf;
 }
 
 bool KeyframeMapper::savePcdMapSrvCallback(

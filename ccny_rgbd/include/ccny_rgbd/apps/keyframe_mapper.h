@@ -103,8 +103,7 @@ class KeyframeMapper
      * The keyframe point clouds are published one by one.
      */
     bool publishKeyframesSrvCallback(
-      PublishKeyframes::Request& request,
-      PublishKeyframes::Response& response);
+      std_srvs::Empty::Request& req, std_srvs::Empty::Response& resp);
 
     /** @brief ROS callback to publish a single keyframe as point clouds
      * 
@@ -120,8 +119,7 @@ class KeyframeMapper
      * the keyframes.
      */
     bool saveKeyframesSrvCallback(
-      Save::Request& request,
-      Save::Response& response);
+      std_srvs::Empty::Request& req, std_srvs::Empty::Response& resp);
 
     /** @brief ROS callback to create an aggregate 3D map and save it to 
      * pcd file.
@@ -153,8 +151,7 @@ class KeyframeMapper
      * the keyframes.
      */
     bool loadKeyframesSrvCallback(
-      Load::Request& request,
-      Load::Response& response);
+      std_srvs::Empty::Request& req, std_srvs::Empty::Response& resp);
 
     /** @brief ROS callback to manually request adding a keyframe
      */
@@ -279,8 +276,11 @@ class KeyframeMapper
     bool octomap_with_color_; ///< whetehr to save Octomaps with color info 
     bool online_graph_opt_; //Whether or not to do online graph optimization and association checking  
     double max_map_z_;   ///< maximum z (in fixed frame) when exporting maps.
-    bool motion_constraint_;
-
+    bool motion_constraint_; /// sets motion constraints of consecutive frames
+    std::string map_save_dir_; ///< directory where we save maps to
+    std::string map_load_dir_; ///< directory where we load maps from
+    bool localization_only_; ///< Sets localization only
+    double max_correction_dist_; ///< Sets max correction dist
     // state vars
     bool manual_add_;   ///< flag indicating whetehr a manual add has been requested
 
@@ -415,6 +415,8 @@ class KeyframeMapper
     void publishKeyframeClouds(void);
 
     void updateOctoMapServer(void);
+
+    bool loadKeyframesToMap(void);
 };
 
 } // namespace ccny_rgbd
