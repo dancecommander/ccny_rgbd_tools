@@ -178,6 +178,11 @@ class KeyframeMapper
     /** @brief Publishes a voxel grid filtered point cloud map from the current keyframe positions
      */
     void publishMap(void);
+
+    /** @brief Generates a 2d map from point clouds and kf poses
+     */
+    bool generate2dMapSrvCallback(
+  std_srvs::Empty::Request& req, std_srvs::Empty::Response& resp);
     
   protected:
 
@@ -240,6 +245,8 @@ class KeyframeMapper
     
     /** @brief ROS service to add a manual keyframe */
     ros::ServiceServer add_manual_keyframe_service_;
+
+    ros::ServiceServer generate_2d_map_service_;
 
     ros::ServiceClient reset_octomap_client_;
 

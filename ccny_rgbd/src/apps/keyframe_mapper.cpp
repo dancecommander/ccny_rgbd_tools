@@ -81,6 +81,8 @@ KeyframeMapper::KeyframeMapper(
     "generate_graph", &KeyframeMapper::generateGraphSrvCallback, this);
    solve_graph_service_ = nh_.advertiseService(
     "solve_graph", &KeyframeMapper::solveGraphSrvCallback, this);
+  generate_2d_map_service_ = nh_.advertiseService(
+    "generate_2d_map", &KeyframeMapper::generate2dMapSrvCallback, this);
  
   // **** subscribers
 
@@ -416,6 +418,17 @@ bool KeyframeMapper::publishKeyframesSrvCallback(
   publishMap();
   return true;
 }
+
+bool KeyframeMapper::generate2dMapSrvCallback(
+  std_srvs::Empty::Request& req, std_srvs::Empty::Response& resp)
+{ 
+  std_srvs::Empty srv;
+  reset_octomap_client_.call(srv);
+
+  publishKeyframeClouds();
+  return true;
+}
+
 
 void KeyframeMapper::publishKeyframeClouds(void){
   for(int i = 0; i < keyframes_.size(); i++){
