@@ -83,7 +83,8 @@ KeyframeMapper::KeyframeMapper(
     "solve_graph", &KeyframeMapper::solveGraphSrvCallback, this);
   generate_2d_map_service_ = nh_.advertiseService(
     "generate_2d_map", &KeyframeMapper::generate2dMapSrvCallback, this);
- 
+  stop_mapping_service_ = nh_.advertiseService(
+    "stop_mapping", &KeyframeMapper::stopMappingSrvCallback, this);
   // **** subscribers
 
   ImageTransport rgb_it(nh_);
@@ -1118,6 +1119,11 @@ bool KeyframeMapper::loadPath(const std::string& filepath)
   }
     
   file.close();
+  return true;
+}
+
+bool KeyframeMapper::stopMappingSrvCallback(std_srvs::Empty::Request& req, std_srvs::Empty::Response& resp){
+  localization_only_=true;
   return true;
 }
 

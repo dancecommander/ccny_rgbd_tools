@@ -183,6 +183,11 @@ class KeyframeMapper
      */
     bool generate2dMapSrvCallback(
   std_srvs::Empty::Request& req, std_srvs::Empty::Response& resp);
+
+    /** @brief Generates a 2d map from point clouds and kf poses
+     */
+    bool stopMappingSrvCallback(
+  std_srvs::Empty::Request& req, std_srvs::Empty::Response& resp);
     
   protected:
 
@@ -246,7 +251,11 @@ class KeyframeMapper
     /** @brief ROS service to add a manual keyframe */
     ros::ServiceServer add_manual_keyframe_service_;
 
+    /** @brief ROS service to generate a 2d map from keyframes */
     ros::ServiceServer generate_2d_map_service_;
+
+    /** @brief ROS service to switch to localization only */
+    ros::ServiceServer stop_mapping_service_;
 
     ros::ServiceClient reset_octomap_client_;
 
@@ -424,6 +433,7 @@ class KeyframeMapper
     void updateOctoMapServer(void);
 
     bool loadKeyframesToMap(void);
+
 };
 
 } // namespace ccny_rgbd
