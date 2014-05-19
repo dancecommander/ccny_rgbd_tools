@@ -110,10 +110,9 @@ KeyframeMapper::~KeyframeMapper()
 
 void KeyframeMapper::initParams()
 {
-  bool verbose;
   
-  if (!nh_private_.getParam ("verbose", verbose))
-    verbose = false;
+  if (!nh_private_.getParam ("verbose", verbose_))
+    verbose_ = false;
   if (!nh_private_.getParam ("queue_size", queue_size_))
     queue_size_ = 5;
   if (!nh_private_.getParam ("fixed_frame", fixed_frame_))
@@ -176,7 +175,7 @@ void KeyframeMapper::initParams()
   
   graph_detector_.setSACReestimateTf(false);
   graph_detector_.setSACSaveResults(false);
-  graph_detector_.setVerbose(verbose);
+  graph_detector_.setVerbose(verbose_);
 
   aggregatedPoseCorrection_.setIdentity();
 }
@@ -278,7 +277,8 @@ bool KeyframeMapper::processFrame(
     getTfDifference(tfFromEigenAffine(odom_pose), 
                     tfFromEigenAffine(keyframe_odometry_poses_.back()), 
                     dist, angle);
-    ROS_INFO("Distance travelled & degrees turned since last KF: %f m, %f degrees",dist,angle);
+    if(verbose_)
+      ROS_INFO("Distance travelled & degrees turned since last KF: %f m, %f degrees",dist,angle);
     if (dist > kf_dist_eps_ || angle > kf_angle_eps_){
       result = true;
     }
@@ -289,6 +289,7 @@ bool KeyframeMapper::processFrame(
 
   if(fabs(angularVelocity_)>max_ang_vel_){
         result = false;
+        if(verbose_)
         ROS_INFO("Angular velocity too large! Will not add keyframe");
       }
       else{

@@ -297,6 +297,7 @@ class KeyframeMapper
     std::string map_load_dir_; ///< directory where we load maps from
     bool localization_only_; ///< Sets localization only
     double max_correction_dist_; ///< Sets max correction dist
+    bool verbose_; ///< Sets whether to output stuff to console.   
     // state vars
     bool manual_add_;   ///< flag indicating whetehr a manual add has been requested
 
